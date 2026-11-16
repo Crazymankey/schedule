@@ -1,1 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>年度行程規劃 | Milk Tea Calendar</title>
+  <style>
+    :root {
+      --bg-main: #F5EFE6;        /* 燕麥奶茶底色 */
+      --bg-card: #FAF7F2;        /* 奶泡白卡片 */
+      --bg-hover: #EFE5D8;       /* 淺拿鐵懸停 */
+      --primary: #A67B5B;        /* 焦糖奶茶主色 */
+      --primary-dark: #825B3E;   /* 深焙焦糖 */
+      --accent: #D4A373;         /* 暖金棕標記 */
+      --text-main: #4A3B32;      /* 深咖啡主文字 */
+      --text-muted: #8C7A6B;     /* 淺咖次要文字 */
+      --border: #E2D5C5;         /* 柔邊線條 */
+      --today-bg: #E6CCB2;       /* 今日標記 */
+    }
 
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      padding: 20px;
+      line-height: 1.6;
+    }
+
+    /* 頂部控制列 */
+    header {
+      max-width: 1400px;
+      margin: 0 auto 24px auto;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 28px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 4px 12px rgba(74, 59, 50, 0.04);
+    }
+
+    .title-group h1 {
+      font-size: 1.6rem;
+      color: var(--text-main);
+      letter-spacing: 1px;
+    }
+
+    .title-group p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    button {
+      background: var(--bg-main);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    button:hover {
+      background: var(--primary);
+      color: #FFF;
+      border-color: var(--primary);
+    }
+
+    .year-display {
+      font-size: 1.3rem;
+      font-weight: 700;
+      min-width: 80px;
+      text-align: center;
+      color: var(--primary-dark);
+    }
+
+    /* 12個月格狀排版 */
+    .year-grid {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+      gap: 20px;
+    }
+
+    .month-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 4px 10px rgba(74, 59, 50, 0.03);
+      transition: transform 0.2s ease;
+    }
+
+    .month-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .month-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+
+    .month-name {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--primary-dark);
+    }
+
+    .month-sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .weekdays, .days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      text-align: center;
+      gap: 4px;
+    }
+
+    .weekdays div {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      padding-bottom: 6px;
+    }
+
+    .day {
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.15s ease;
+    }
+
+    .day:hover:not(.empty) {
+      background: var(--bg-hover);
+    }
+
+    .day.empty {
+      cursor: default;
+    }
+
+    .day.today {
+      background: var(--today-bg);
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    /* 有行程的日子標示圓點 */
+    .day.has-event {
+      font-weight: 700;
+      color: var(--primary-dark);
+      border: 1px solid var(--accent);
+    }
+
+    .day.has-event::after {
+      content: "";
+      width: 5px;
+      height: 5px;
+      background-color: var(--primary);
+      border-radius: 50%;
+      position: absolute;
+      bottom: 4px;
+    }
+
+    /* 行程檢視彈窗 (Modal) */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(74, 59, 50, 0.45);
+      backdrop-filter: blur(3px);
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      z-index: 1000;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      width: 100%;
+      max-width: 480px;
+      padding: 24px;
+      box-shadow: 0 12px 30px rgba(74, 59, 50, 0.15);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+
+    .modal-header h2 {
+      font-size: 1.25rem;
+      color: var(--primary-dark);
+    }
+
+    .close-btn {
+      background: transparent;
+      border: none;
+      font-size: 1.4rem;
+      color: var(--text-muted);
+      padding: 0 6px;
+    }
+
+    .close-btn:hover {
+      background: transparent;
+      color: var(--text-main);
+    }
+
+    .event-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .event-item {
+      background: var(--bg-main);
+      border-left: 4px solid var(--primary);
+      padding: 10px 14px;
+      border-radius: 8px;
+    }
+
+    .event-time {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--primary-dark);
+    }
+
+    .event-title {
+      font-size: 0.98rem;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    .event-note {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .no-event {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 24px 0;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="title-group">
+      <h1>年度行程日誌</h1>
+      <p>點擊日期檢視當日詳細時間與跟進事項</p>
+    </div>
+    <div class="controls">
+      <button onclick="changeYear(-1)">◀ 上一年</button>
+      <div class="year-display" id="yearDisplay">2026</div>
+      <button onclick="changeYear(1)">下一年 ▶</button>
+      <button onclick="resetToToday()">回到今年</button>
+    </div>
+  </header>
+
+  <main class="year-grid" id="yearGrid"></main>
+
+  <!-- 點擊日期彈出的行程細節視窗 -->
+  <div class="modal-overlay" id="eventModal" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 id="modalDateTitle">2026年 11月 6日</h2>
+        <button class="close-btn" onclick="closeModal()">✕</button>
+      </div>
+      <ul class="event-list" id="modalEventList"></ul>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // 📌 行程資料庫 (未來可由 n8n 自動更新此 JSON 區塊或外部 events.json)
+    // 格式： "YYYY-MM-DD": [ { time: "HH:MM", title: "事項", note: "備註" } ]
+    // ==========================================
+    const calendarEvents = {
+      "2026-11-06": [
+        { time: "13:30", title: "協助準備／法會準備", note: "21:00 結束" },
+        { time: "14:00", title: "義工隊例會", note: "與會：溫暖、洪麗山、藍錦師、譚講師、向老師、連國、車銘、莫仁" },
+        { time: "23:00", title: "跟進 蒲林荷如", note: "" }
+      ],
+      "2026-11-07": [
+        { time: "08:00", title: "招待雷文、登祿", note: "2位得獎" },
+        { time: "09:00", title: "晉階人生", note: "" },
+        { time: "12:00", title: "輔導 溫錦源", note: "" },
+        { time: "20:00", title: "輔導 符文淳 / 新會員歡迎會", note: "" }
+      ],
+      "2026-11-13": [
+        { time: "14:00", title: "高雄 HP", note: "孟樺、林致賢、文美妙、勞進榮、心侖、君柏、燕玉、阿泉" },
+        { time: "16:00", title: "協助 孟樺 招待 林致額", note: "" },
+        { time: "17:00", title: "協助 君小珍 招待 燕玉", note: "" },
+        { time: "20:00", title: "協助 林華 招待 宏宏、徐育綾", note: "" }
+      ],
+      "2026-11-14": [
+        { time: "09:00", title: "晉階人生", note: "" },
+        { time: "16:00", title: "跟進 查奶媽", note: "" },
+        { time: "17:00", title: "推廣 陳君男、媽媽、蓋凱", note: "" },
+        { time: "20:00", title: "新會員歡迎會", note: "" }
+      ],
+      "2026-11-20": [
+        { time: "10:00", title: "大埔慈善 感恩會", note: "約教賢" },
+        { time: "12:00", title: "跟進方經理", note: "結案計收 192人" },
+        { time: "13:00", title: "大埔彌勒佛院法會", note: "約吳世賢、明頭" },
+        { time: "16:00", title: "推廣 通訊林杉", note: "新增：劉政叡" }
+      ],
+      "2026-11-21": [
+        { time: "08:00", title: "(椅金)車", note: "順延" },
+        { time: "10:00", title: "手搞 吳世震", note: "止批本題" },
+        { time: "14:00", title: "協助 孟樺 招待 記松", note: "" },
+        { time: "15:00", title: "協助 孟樺 填表", note: "兼具正義職稱" },
+        { time: "19:30", title: "輔導 林致額", note: "" }
+      ]
+    };
+
+    const monthNames = [
+      "1月 January", "2月 February", "3月 March", "4月 April",
+      "5月 May", "6月 June", "7月 July", "8月 August",
+      "9月 September", "10月 October", "11月 November", "12月 December"
+    ];
+
+    const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
+
+    const today = new Date();
+    let currentYear = today.getFullYear();
+
+    function renderCalendar(year) {
+      document.getElementById("yearDisplay").textContent = `${year} 年`;
+      const grid = document.getElementById("yearGrid");
+      grid.innerHTML = "";
+
+      for (let month = 0; month < 12; month++) {
+        const card = document.createElement("div");
+        card.className = "month-card";
+
+        // 月份標題
+        const header = document.createElement("div");
+        header.className = "month-header";
+        header.innerHTML = `
+          <span class="month-name">${month + 1} 月</span>
+          <span class="month-sub">${year} / ${String(month + 1).padStart(2, "0")}</span>
+        `;
+        card.appendChild(header);
+
+        // 星期列
+        const weekdaysRow = document.createElement("div");
+        weekdaysRow.className = "weekdays";
+        weekDays.forEach(day => {
+          const d = document.createElement("div");
+          d.textContent = day;
+          weekdaysRow.appendChild(d);
+        });
+        card.appendChild(weekdaysRow);
+
+        // 日期格子
+        const daysGrid = document.createElement("div");
+        daysGrid.className = "days";
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        // 補齊月初空白
+        for (let i = 0; i < firstDay; i++) {
+          const empty = document.createElement("div");
+          empty.className = "day empty";
+          daysGrid.appendChild(empty);
+        }
+
+        // 填入日期
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dayCell = document.createElement("div");
+          dayCell.className = "day";
+          dayCell.textContent = day;
+
+          const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+          // 標記今天
+          if (
+            year === today.getFullYear() &&
+            month === today.getMonth() &&
+            day === today.getDate()
+          ) {
+            dayCell.classList.add("today");
+          }
+
+          // 標記有行程的日子
+          if (calendarEvents[dateStr] && calendarEvents[dateStr].length > 0) {
+            dayCell.classList.add("has-event");
+          }
+
+          dayCell.onclick = () => openModal(year, month + 1, day, dateStr);
+          daysGrid.appendChild(dayCell);
+        }
+
+        card.appendChild(daysGrid);
+        grid.appendChild(card);
+      }
+    }
+
+    function openModal(year, month, day, dateStr) {
+      document.getElementById("modalDateTitle").textContent = `${year} 年 ${month} 月 ${day} 日`;
+      const list = document.getElementById("modalEventList");
+      list.innerHTML = "";
+
+      const events = calendarEvents[dateStr];
+      if (events && events.length > 0) {
+        events.forEach(ev => {
+          const li = document.createElement("li");
+          li.className = "event-item";
+          li.innerHTML = `
+            <div class="event-time">${ev.time || "全天"}</div>
+            <div class="event-title">${ev.title}</div>
+            ${ev.note ? `<div class="event-note">${ev.note}</div>` : ""}
+          `;
+          list.appendChild(li);
+        });
+      } else {
+        list.innerHTML = `<div class="no-event">這一天目前沒有安排行程 ☕</div>`;
+      }
+
+      document.getElementById("eventModal").classList.add("active");
+    }
+
+    function closeModal() {
+      document.getElementById("eventModal").classList.remove("active");
+    }
+
+    function changeYear(delta) {
+      currentYear += delta;
+      renderCalendar(currentYear);
+    }
+
+    function resetToToday() {
+      currentYear = today.getFullYear();
+      renderCalendar(currentYear);
+    }
+
+    // 初始化渲染
+    renderCalendar(currentYear);
+  </script>
+</body>
+</html>
