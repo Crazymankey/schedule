@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>年度行程規劃 | Milk Tea Calendar</title>
+  <title>孟擇私人秘書 | 工作與客戶管理系統</title>
   <style>
     :root {
       --bg-main: #F5EFE6;        /* 燕麥奶茶底色 */
@@ -16,6 +16,7 @@
       --text-muted: #8C7A6B;     /* 淺咖次要文字 */
       --border: #E2D5C5;         /* 柔邊線條 */
       --today-bg: #E6CCB2;       /* 今日標記 */
+      --done-color: #B5A89B;     /* 完成後的刪除線顏色 */
     }
 
     * {
@@ -59,6 +60,28 @@
       color: var(--text-muted);
     }
 
+    .nav-tabs {
+      display: flex;
+      gap: 10px;
+    }
+
+    .tab-btn {
+      background: var(--bg-main);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      padding: 8px 18px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn.active, .tab-btn:hover {
+      background: var(--primary);
+      color: #FFF;
+      border-color: var(--primary);
+    }
+
     .controls {
       display: flex;
       align-items: center;
@@ -90,10 +113,19 @@
       color: var(--primary-dark);
     }
 
-    /* 12個月格狀排版 */
-    .year-grid {
+    /* 頁面切換容器 */
+    .view-container {
       max-width: 1400px;
       margin: 0 auto;
+      display: none;
+    }
+
+    .view-container.active {
+      display: block;
+    }
+
+    /* 12個月格狀排版 */
+    .year-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
       gap: 20px;
@@ -173,7 +205,6 @@
       color: var(--text-main);
     }
 
-    /* 有行程的日子標示圓點 */
     .day.has-event {
       font-weight: 700;
       color: var(--primary-dark);
@@ -188,6 +219,57 @@
       border-radius: 50%;
       position: absolute;
       bottom: 4px;
+    }
+
+    /* 客戶名單排版 */
+    .client-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    .client-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 4px 10px rgba(74, 59, 50, 0.03);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .client-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+
+    .client-name {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--primary-dark);
+    }
+
+    .client-phone {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      background: var(--bg-main);
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    .client-body {
+      font-size: 0.95rem;
+      color: var(--text-main);
+    }
+
+    .client-date {
+      font-size: 0.78rem;
+      color: var(--text-muted);
     }
 
     /* 行程檢視彈窗 (Modal) */
@@ -256,8 +338,16 @@
     .event-item {
       background: var(--bg-main);
       border-left: 4px solid var(--primary);
-      padding: 10px 14px;
+      padding: 12px 14px;
       border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .event-info.done .event-title {
+      text-decoration: line-through;
+      color: var(--done-color);
     }
 
     .event-time {
@@ -278,6 +368,14 @@
       margin-top: 4px;
     }
 
+    .done-btn {
+      font-size: 0.8rem;
+      padding: 4px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+
     .no-event {
       text-align: center;
       color: var(--text-muted);
@@ -290,10 +388,14 @@
 
   <header>
     <div class="title-group">
-      <h1>年度行程日誌</h1>
-      <p>點擊日期檢視當日詳細時間與跟進事項</p>
+      <h1>孟擇私人秘書系統</h1>
+      <p>結合年度行事曆與客戶名單的全自動化管理中樞</p>
     </div>
-    <div class="controls">
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="switchView('calendar')">📅 年度行事曆</button>
+      <button class="tab-btn" onclick="switchView('clients')">👥 客戶名單</button>
+    </div>
+    <div class="controls" id="calendarControls">
       <button onclick="changeYear(-1)">◀ 上一年</button>
       <div class="year-display" id="yearDisplay">2026</div>
       <button onclick="changeYear(1)">下一年 ▶</button>
@@ -301,7 +403,17 @@
     </div>
   </header>
 
-  <main class="year-grid" id="yearGrid"></main>
+  <!-- 行事曆視圖 -->
+  <main class="view-container active" id="calendarView">
+    <div class="year-grid" id="yearGrid"></div>
+  </main>
+
+  <!-- 客戶名單視圖 -->
+  <main class="view-container" id="clientsView">
+    <div class="client-grid" id="clientGrid">
+      <div class="no-event">載入中... ☕</div>
+    </div>
+  </main>
 
   <!-- 點擊日期彈出的行程細節視窗 -->
   <div class="modal-overlay" id="eventModal" onclick="closeModal(event)">
@@ -315,24 +427,69 @@
   </div>
 
   <script>
-    // 預設完全空白的行程資料庫
     let calendarEvents = {};
+    let clientList = [];
 
     const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
     const today = new Date();
     let currentYear = today.getFullYear();
+    let activeDateStr = "";
 
-    // 嘗試自動讀取同目錄下的 events.json (未來串接 n8n 時直接更新 events.json 即可)
-    async function loadExternalEvents() {
+    async function loadData() {
       try {
-        const res = await fetch('./events.json?t=' + Date.now());
-        if (res.ok) {
-          calendarEvents = await res.json();
-        }
-      } catch (e) {
-        // 若尚未建立 events.json 則維持空白，不影響畫面顯示
-      }
+        const resEv = await fetch('./events.json?t=' + Date.now());
+        if (resEv.ok) calendarEvents = await resEv.json();
+      } catch (e) {}
+
+      try {
+        const resCl = await fetch('./clients.json?t=' + Date.now());
+        if (resCl.ok) clientList = await resCl.json();
+      } catch (e) {}
+
       renderCalendar(currentYear);
+      renderClients();
+    }
+
+    function switchView(viewName) {
+      document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      
+      if (viewName === 'calendar') {
+        document.getElementById('calendarView').classList.add('active');
+        event.target.classList.add('active');
+        document.getElementById('calendarControls').style.display = 'flex';
+      } else {
+        document.getElementById('clientsView').classList.add('active');
+        event.target.classList.add('active');
+        document.getElementById('calendarControls').style.display = 'none';
+        renderClients();
+      }
+    }
+
+    function renderClients() {
+      const grid = document.getElementById('clientGrid');
+      grid.innerHTML = "";
+      if (!clientList || clientList.length === 0) {
+        grid.innerHTML = `<div class="no-event" style="grid-column: 1/-1;">目前還沒有新增任何客戶檔案 ☕</div>`;
+        return;
+      }
+      clientList.forEach((client, index) => {
+        const card = document.createElement('div');
+        card.className = 'client-card';
+        card.innerHTML = `
+          <div>
+            <div class="client-header">
+              <span class="client-name">👤 ${client.name}</span>
+              <span class="client-phone">📞 ${client.phone}</span>
+            </div>
+            <div class="client-body" style="margin-top: 10px;">
+              ${client.note ? `📝 備註：${client.note}` : '無特別備註'}
+            </div>
+          </div>
+          <div class="client-date">建立日期：${client.createdAt || '未知'}</div>
+        `;
+        grid.appendChild(card);
+      });
     }
 
     function renderCalendar(year) {
@@ -344,7 +501,6 @@
         const card = document.createElement("div");
         card.className = "month-card";
 
-        // 月份標題
         const header = document.createElement("div");
         header.className = "month-header";
         header.innerHTML = `
@@ -353,7 +509,6 @@
         `;
         card.appendChild(header);
 
-        // 星期列
         const weekdaysRow = document.createElement("div");
         weekdaysRow.className = "weekdays";
         weekDays.forEach(day => {
@@ -363,21 +518,18 @@
         });
         card.appendChild(weekdaysRow);
 
-        // 日期格子
         const daysGrid = document.createElement("div");
         daysGrid.className = "days";
 
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-        // 補齊月初空白
         for (let i = 0; i < firstDay; i++) {
           const empty = document.createElement("div");
           empty.className = "day empty";
           daysGrid.appendChild(empty);
         }
 
-        // 填入日期
         for (let day = 1; day <= daysInMonth; day++) {
           const dayCell = document.createElement("div");
           dayCell.className = "day";
@@ -385,16 +537,10 @@
 
           const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
-          // 標記今天
-          if (
-            year === today.getFullYear() &&
-            month === today.getMonth() &&
-            day === today.getDate()
-          ) {
+          if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate()) {
             dayCell.classList.add("today");
           }
 
-          // 標記有行程的日子
           if (calendarEvents[dateStr] && calendarEvents[dateStr].length > 0) {
             dayCell.classList.add("has-event");
           }
@@ -409,27 +555,42 @@
     }
 
     function openModal(year, month, day, dateStr) {
+      activeDateStr = dateStr;
       document.getElementById("modalDateTitle").textContent = `${year} 年 ${month} 月 ${day} 日`;
+      renderModalEvents();
+      document.getElementById("eventModal").classList.add("active");
+    }
+
+    function renderModalEvents() {
       const list = document.getElementById("modalEventList");
       list.innerHTML = "";
 
-      const events = calendarEvents[dateStr];
+      const events = calendarEvents[activeDateStr];
       if (events && events.length > 0) {
-        events.forEach(ev => {
+        events.forEach((ev, idx) => {
           const li = document.createElement("li");
           li.className = "event-item";
           li.innerHTML = `
-            <div class="event-time">${ev.time || "全天"}</div>
-            <div class="event-title">${ev.title}</div>
-            ${ev.note ? `<div class="event-note">${ev.note}</div>` : ""}
+            <div class="event-info ${ev.done ? 'done' : ''}">
+              <div class="event-time">${ev.time || "全天"}</div>
+              <div class="event-title">${ev.title}</div>
+              ${ev.note ? `<div class="event-note">${ev.note}</div>` : ""}
+            </div>
+            <button class="done-btn" onclick="toggleDone('${activeDateStr}', ${idx})">${ev.done ? '取消畫線' : '達成畫線'}</button>
           `;
           list.appendChild(li);
         });
       } else {
         list.innerHTML = `<div class="no-event">這一天目前沒有安排行程 ☕</div>`;
       }
+    }
 
-      document.getElementById("eventModal").classList.add("active");
+    function toggleDone(dateStr, index) {
+      if (calendarEvents[dateStr] && calendarEvents[dateStr][index]) {
+        calendarEvents[dateStr][index].done = !calendarEvents[dateStr][index].done;
+        renderModalEvents();
+        renderCalendar(currentYear);
+      }
     }
 
     function closeModal() {
@@ -446,8 +607,7 @@
       renderCalendar(currentYear);
     }
 
-    // 初始化渲染
-    loadExternalEvents();
+    loadData();
   </script>
 </body>
 </html>
