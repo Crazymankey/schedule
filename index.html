@@ -17,6 +17,7 @@
       --border: #E2D5C5;         /* 柔邊線條 */
       --today-bg: #E6CCB2;       /* 今日標記 */
       --done-color: #B5A89B;     /* 完成後的刪除線顏色 */
+      --danger: #C85A53;         /* 刪除按鈕柔紅 */
     }
 
     * {
@@ -33,7 +34,6 @@
       line-height: 1.6;
     }
 
-    /* 頂部控制列 */
     header {
       max-width: 1400px;
       margin: 0 auto 24px auto;
@@ -65,18 +65,18 @@
       gap: 10px;
     }
 
-    .tab-btn {
+    .tab-btn, button {
       background: var(--bg-main);
       color: var(--text-main);
       border: 1px solid var(--border);
-      padding: 8px 18px;
+      padding: 8px 16px;
       border-radius: 10px;
       cursor: pointer;
       font-weight: 600;
       transition: all 0.2s ease;
     }
 
-    .tab-btn.active, .tab-btn:hover {
+    .tab-btn.active, .tab-btn:hover, button:hover {
       background: var(--primary);
       color: #FFF;
       border-color: var(--primary);
@@ -88,23 +88,6 @@
       gap: 12px;
     }
 
-    button {
-      background: var(--bg-main);
-      color: var(--text-main);
-      border: 1px solid var(--border);
-      padding: 8px 16px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.2s ease;
-    }
-
-    button:hover {
-      background: var(--primary);
-      color: #FFF;
-      border-color: var(--primary);
-    }
-
     .year-display {
       font-size: 1.3rem;
       font-weight: 700;
@@ -113,7 +96,6 @@
       color: var(--primary-dark);
     }
 
-    /* 頁面切換容器 */
     .view-container {
       max-width: 1400px;
       margin: 0 auto;
@@ -124,7 +106,6 @@
       display: block;
     }
 
-    /* 12個月格狀排版 */
     .year-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
@@ -137,11 +118,6 @@
       border-radius: 16px;
       padding: 18px;
       box-shadow: 0 4px 10px rgba(74, 59, 50, 0.03);
-      transition: transform 0.2s ease;
-    }
-
-    .month-card:hover {
-      transform: translateY(-2px);
     }
 
     .month-header {
@@ -188,7 +164,6 @@
       font-size: 0.9rem;
       cursor: pointer;
       position: relative;
-      transition: background 0.15s ease;
     }
 
     .day:hover:not(.empty) {
@@ -202,7 +177,6 @@
     .day.today {
       background: var(--today-bg);
       font-weight: 700;
-      color: var(--text-main);
     }
 
     .day.has-event {
@@ -238,6 +212,19 @@
       flex-direction: column;
       justify-content: space-between;
       gap: 12px;
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .client-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--primary);
+    }
+
+    .client-card.done .client-name,
+    .client-card.done .client-body {
+      text-decoration: line-through;
+      color: var(--done-color);
     }
 
     .client-header {
@@ -255,24 +242,37 @@
     }
 
     .client-phone {
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       color: var(--text-muted);
       background: var(--bg-main);
       padding: 2px 8px;
       border-radius: 6px;
     }
 
-    .client-body {
-      font-size: 0.95rem;
-      color: var(--text-main);
+    .client-address {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--primary-dark);
+      margin-top: 8px;
     }
 
-    .client-date {
+    .client-body {
+      font-size: 0.92rem;
+      color: var(--text-main);
+      margin-top: 6px;
+    }
+
+    .client-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       font-size: 0.78rem;
       color: var(--text-muted);
+      border-top: 1px dashed var(--border);
+      padding-top: 8px;
     }
 
-    /* 行程檢視彈窗 (Modal) */
+    /* 彈窗樣式 */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -343,6 +343,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 10px;
     }
 
     .event-info.done .event-title {
@@ -368,12 +369,27 @@
       margin-top: 4px;
     }
 
-    .done-btn {
-      font-size: 0.8rem;
-      padding: 4px 10px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
+    .action-btns {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .btn-sm {
+      font-size: 0.78rem;
+      padding: 5px 10px;
       border-radius: 6px;
+    }
+
+    .btn-del {
+      color: var(--danger);
+      border-color: #E8C5C3;
+    }
+
+    .btn-del:hover {
+      background: var(--danger);
+      color: #FFF;
+      border-color: var(--danger);
     }
 
     .no-event {
@@ -392,8 +408,8 @@
       <p>結合年度行事曆與客戶名單的全自動化管理中樞</p>
     </div>
     <div class="nav-tabs">
-      <button class="tab-btn active" onclick="switchView('calendar')">📅 年度行事曆</button>
-      <button class="tab-btn" onclick="switchView('clients')">👥 客戶名單</button>
+      <button class="tab-btn active" id="tabCalendar" onclick="switchView('calendar')">📅 年度行事曆</button>
+      <button class="tab-btn" id="tabClients" onclick="switchView('clients')">👥 客戶名單</button>
     </div>
     <div class="controls" id="calendarControls">
       <button onclick="changeYear(-1)">◀ 上一年</button>
@@ -403,26 +419,39 @@
     </div>
   </header>
 
-  <!-- 行事曆視圖 -->
   <main class="view-container active" id="calendarView">
     <div class="year-grid" id="yearGrid"></div>
   </main>
 
-  <!-- 客戶名單視圖 -->
   <main class="view-container" id="clientsView">
     <div class="client-grid" id="clientGrid">
       <div class="no-event">載入中... ☕</div>
     </div>
   </main>
 
-  <!-- 點擊日期彈出的行程細節視窗 -->
-  <div class="modal-overlay" id="eventModal" onclick="closeModal(event)">
+  <!-- 行程彈窗 -->
+  <div class="modal-overlay" id="eventModal" onclick="closeModal()">
     <div class="modal-content" onclick="event.stopPropagation()">
       <div class="modal-header">
         <h2 id="modalDateTitle"></h2>
         <button class="close-btn" onclick="closeModal()">✕</button>
       </div>
       <ul class="event-list" id="modalEventList"></ul>
+    </div>
+  </div>
+
+  <!-- 客戶操作彈窗（點擊客戶卡片跳出達成畫線 / 刪除） -->
+  <div class="modal-overlay" id="clientModal" onclick="closeClientModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 id="clientModalTitle">客戶管理</h2>
+        <button class="close-btn" onclick="closeClientModal()">✕</button>
+      </div>
+      <p id="clientModalDetail" style="margin-bottom: 18px; color: var(--text-muted); font-size: 0.92rem;"></p>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button id="clientToggleDoneBtn" onclick="toggleClientDone()">✅ 達成畫線</button>
+        <button class="btn-del" onclick="deleteClient()">🗑️ 客戶取消 / 刪除</button>
+      </div>
     </div>
   </div>
 
@@ -434,6 +463,7 @@
     const today = new Date();
     let currentYear = today.getFullYear();
     let activeDateStr = "";
+    let selectedClientIndex = -1;
 
     async function loadData() {
       try {
@@ -456,11 +486,11 @@
       
       if (viewName === 'calendar') {
         document.getElementById('calendarView').classList.add('active');
-        event.target.classList.add('active');
+        document.getElementById('tabCalendar').classList.add('active');
         document.getElementById('calendarControls').style.display = 'flex';
       } else {
         document.getElementById('clientsView').classList.add('active');
-        event.target.classList.add('active');
+        document.getElementById('tabClients').classList.add('active');
         document.getElementById('calendarControls').style.display = 'none';
         renderClients();
       }
@@ -475,21 +505,59 @@
       }
       clientList.forEach((client, index) => {
         const card = document.createElement('div');
-        card.className = 'client-card';
+        card.className = `client-card ${client.done ? 'done' : ''}`;
+        card.onclick = () => openClientModal(index);
         card.innerHTML = `
           <div>
             <div class="client-header">
               <span class="client-name">👤 ${client.name}</span>
               <span class="client-phone">📞 ${client.phone}</span>
             </div>
-            <div class="client-body" style="margin-top: 10px;">
+            <div class="client-address">📍 居住地：${client.address || '未填寫'}</div>
+            <div class="client-body">
               ${client.note ? `📝 備註：${client.note}` : '無特別備註'}
             </div>
           </div>
-          <div class="client-date">建立日期：${client.createdAt || '未知'}</div>
+          <div class="client-footer">
+            <span>建立：${client.createdAt || '未知'}</span>
+            <span>點擊卡片管理 ➔</span>
+          </div>
         `;
         grid.appendChild(card);
       });
+    }
+
+    function openClientModal(index) {
+      selectedClientIndex = index;
+      const client = clientList[index];
+      document.getElementById('clientModalTitle').textContent = `👤 ${client.name}`;
+      document.getElementById('clientModalDetail').innerHTML = `
+        📞 電話：${client.phone}<br>
+        📍 居住地：${client.address || '未填寫'}<br>
+        📝 備註：${client.note || '無'}
+      `;
+      document.getElementById('clientToggleDoneBtn').textContent = client.done ? '↩️ 取消畫線' : '✅ 達成畫線';
+      document.getElementById('clientModal').classList.add('active');
+    }
+
+    function closeClientModal() {
+      document.getElementById('clientModal').classList.remove('active');
+    }
+
+    function toggleClientDone() {
+      if (selectedClientIndex > -1) {
+        clientList[selectedClientIndex].done = !clientList[selectedClientIndex].done;
+        renderClients();
+        closeClientModal();
+      }
+    }
+
+    function deleteClient() {
+      if (selectedClientIndex > -1 && confirm(`確定要刪除客戶「${clientList[selectedClientIndex].name}」嗎？`)) {
+        clientList.splice(selectedClientIndex, 1);
+        renderClients();
+        closeClientModal();
+      }
     }
 
     function renderCalendar(year) {
@@ -576,7 +644,10 @@
               <div class="event-title">${ev.title}</div>
               ${ev.note ? `<div class="event-note">${ev.note}</div>` : ""}
             </div>
-            <button class="done-btn" onclick="toggleDone('${activeDateStr}', ${idx})">${ev.done ? '取消畫線' : '達成畫線'}</button>
+            <div class="action-btns">
+              <button class="btn-sm" onclick="toggleDone('${activeDateStr}', ${idx})">${ev.done ? '取消畫線' : '達成畫線'}</button>
+              <button class="btn-sm btn-del" onclick="deleteEvent('${activeDateStr}', ${idx})">刪除</button>
+            </div>
           `;
           list.appendChild(li);
         });
@@ -588,6 +659,17 @@
     function toggleDone(dateStr, index) {
       if (calendarEvents[dateStr] && calendarEvents[dateStr][index]) {
         calendarEvents[dateStr][index].done = !calendarEvents[dateStr][index].done;
+        renderModalEvents();
+        renderCalendar(currentYear);
+      }
+    }
+
+    function deleteEvent(dateStr, index) {
+      if (calendarEvents[dateStr] && confirm(`確定要刪除行程「${calendarEvents[dateStr][index].title}」嗎？`)) {
+        calendarEvents[dateStr].splice(index, 1);
+        if (calendarEvents[dateStr].length === 0) {
+          delete calendarEvents[dateStr];
+        }
         renderModalEvents();
         renderCalendar(currentYear);
       }
