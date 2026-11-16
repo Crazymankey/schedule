@@ -307,7 +307,7 @@
   <div class="modal-overlay" id="eventModal" onclick="closeModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
       <div class="modal-header">
-        <h2 id="modalDateTitle">2026年 11月 6日</h2>
+        <h2 id="modalDateTitle"></h2>
         <button class="close-btn" onclick="closeModal()">✕</button>
       </div>
       <ul class="event-list" id="modalEventList"></ul>
@@ -315,59 +315,25 @@
   </div>
 
   <script>
-    // ==========================================
-    // 📌 行程資料庫 (未來可由 n8n 自動更新此 JSON 區塊或外部 events.json)
-    // 格式： "YYYY-MM-DD": [ { time: "HH:MM", title: "事項", note: "備註" } ]
-    // ==========================================
-    const calendarEvents = {
-      "2026-11-06": [
-        { time: "13:30", title: "協助準備／法會準備", note: "21:00 結束" },
-        { time: "14:00", title: "義工隊例會", note: "與會：溫暖、洪麗山、藍錦師、譚講師、向老師、連國、車銘、莫仁" },
-        { time: "23:00", title: "跟進 蒲林荷如", note: "" }
-      ],
-      "2026-11-07": [
-        { time: "08:00", title: "招待雷文、登祿", note: "2位得獎" },
-        { time: "09:00", title: "晉階人生", note: "" },
-        { time: "12:00", title: "輔導 溫錦源", note: "" },
-        { time: "20:00", title: "輔導 符文淳 / 新會員歡迎會", note: "" }
-      ],
-      "2026-11-13": [
-        { time: "14:00", title: "高雄 HP", note: "孟樺、林致賢、文美妙、勞進榮、心侖、君柏、燕玉、阿泉" },
-        { time: "16:00", title: "協助 孟樺 招待 林致額", note: "" },
-        { time: "17:00", title: "協助 君小珍 招待 燕玉", note: "" },
-        { time: "20:00", title: "協助 林華 招待 宏宏、徐育綾", note: "" }
-      ],
-      "2026-11-14": [
-        { time: "09:00", title: "晉階人生", note: "" },
-        { time: "16:00", title: "跟進 查奶媽", note: "" },
-        { time: "17:00", title: "推廣 陳君男、媽媽、蓋凱", note: "" },
-        { time: "20:00", title: "新會員歡迎會", note: "" }
-      ],
-      "2026-11-20": [
-        { time: "10:00", title: "大埔慈善 感恩會", note: "約教賢" },
-        { time: "12:00", title: "跟進方經理", note: "結案計收 192人" },
-        { time: "13:00", title: "大埔彌勒佛院法會", note: "約吳世賢、明頭" },
-        { time: "16:00", title: "推廣 通訊林杉", note: "新增：劉政叡" }
-      ],
-      "2026-11-21": [
-        { time: "08:00", title: "(椅金)車", note: "順延" },
-        { time: "10:00", title: "手搞 吳世震", note: "止批本題" },
-        { time: "14:00", title: "協助 孟樺 招待 記松", note: "" },
-        { time: "15:00", title: "協助 孟樺 填表", note: "兼具正義職稱" },
-        { time: "19:30", title: "輔導 林致額", note: "" }
-      ]
-    };
-
-    const monthNames = [
-      "1月 January", "2月 February", "3月 March", "4月 April",
-      "5月 May", "6月 June", "7月 July", "8月 August",
-      "9月 September", "10月 October", "11月 November", "12月 December"
-    ];
+    // 預設完全空白的行程資料庫
+    let calendarEvents = {};
 
     const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
-
     const today = new Date();
     let currentYear = today.getFullYear();
+
+    // 嘗試自動讀取同目錄下的 events.json (未來串接 n8n 時直接更新 events.json 即可)
+    async function loadExternalEvents() {
+      try {
+        const res = await fetch('./events.json?t=' + Date.now());
+        if (res.ok) {
+          calendarEvents = await res.json();
+        }
+      } catch (e) {
+        // 若尚未建立 events.json 則維持空白，不影響畫面顯示
+      }
+      renderCalendar(currentYear);
+    }
 
     function renderCalendar(year) {
       document.getElementById("yearDisplay").textContent = `${year} 年`;
@@ -481,7 +447,7 @@
     }
 
     // 初始化渲染
-    renderCalendar(currentYear);
+    loadExternalEvents();
   </script>
 </body>
 </html>
