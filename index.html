@@ -52,7 +52,7 @@
     .title-group h1 { font-size: 1.6rem; color: var(--text-main); letter-spacing: 1px; }
     .title-group p { font-size: 0.9rem; color: var(--text-muted); }
 
-    .nav-tabs { display: flex; gap: 10px; }
+    .nav-tabs { display: flex; flex-wrap: wrap; gap: 10px; }
 
     .tab-btn, button {
       background: var(--bg-main);
@@ -65,14 +65,19 @@
       transition: all 0.2s ease;
     }
 
-    .tab-btn.active, .tab-btn:hover, button:hover {
+    .tab-btn.active, .tab-btn:hover, button:hover:not(:disabled) {
       background: var(--primary);
       color: #FFF;
       border-color: var(--primary);
     }
 
-    .controls { display: flex; align-items: center; gap: 12px; }
-    .year-display { font-size: 1.3rem; font-weight: 700; min-width: 80px; text-align: center; color: var(--primary-dark); }
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .year-display { font-size: 1.3rem; font-weight: 700; min-width: 84px; text-align: center; color: var(--primary-dark); }
 
     .view-container { max-width: 1400px; margin: 0 auto; display: none; }
     .view-container.active { display: block; }
@@ -152,6 +157,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 8px;
       border-bottom: 1px solid var(--border);
       padding-bottom: 10px;
     }
@@ -226,11 +232,10 @@
     .action-btns { display: flex; gap: 6px; flex-shrink: 0; }
     .btn-sm { font-size: 0.78rem; padding: 5px 10px; border-radius: 6px; }
     .btn-del { color: var(--danger); border-color: #E8C5C3; }
-    .btn-del:hover { background: var(--danger); color: #FFF; border-color: var(--danger); }
+    .btn-del:hover:not(:disabled) { background: var(--danger); color: #FFF; border-color: var(--danger); }
 
     .no-event { text-align: center; color: var(--text-muted); padding: 24px 0; font-size: 0.95rem; }
 
-    /* 同步狀態提示氣泡 */
     .sync-toast {
       position: fixed;
       bottom: 24px;
@@ -259,10 +264,11 @@
     <div class="nav-tabs">
       <button class="tab-btn active" id="tabCalendar" onclick="switchView('calendar')">📅 年度行事曆</button>
       <button class="tab-btn" id="tabClients" onclick="switchView('clients')">👥 客戶名單</button>
+      <button onclick="refreshFromCloud(true)" id="refreshBtn">🔄 重新讀取</button>
     </div>
     <div class="controls" id="calendarControls">
       <button onclick="changeYear(-1)">◀ 上一年</button>
-      <div class="year-display" id="yearDisplay">2026</div>
+      <div class="year-display" id="yearDisplay">2026 年</div>
       <button onclick="changeYear(1)">下一年 ▶</button>
       <button onclick="resetToToday()">回到今年</button>
     </div>
@@ -305,11 +311,11 @@
   <div class="sync-toast" id="syncToast">正在同步至雲端資料庫...</div>
 
   <script>
-    // 串接 Railway n8n Webhook 網址
     const SYNC_WEBHOOK_URL = "https://primary-production-5317642b.up.railway.app/webhook/schedule-sync";
 
     let calendarEvents = {};
     let clientList = [];
+    let isSyncing = false;
 
     const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
     const today = new Date();
@@ -321,11 +327,27 @@
       const toast = document.getElementById("syncToast");
       toast.textContent = msg;
       toast.classList.add("show");
-      setTimeout(() => toast.classList.remove("show"), 2500);
+      clearTimeout(showToast._timer);
+      showToast._timer = setTimeout(() => toast.classList.remove("show"), 2500);
+    }
+
+    function setButtonsDisabled(disabled) {
+      document.querySelectorAll("button").forEach(btn => {
+        if (!btn.classList.contains("close-btn")) {
+          btn.disabled = disabled;
+        }
+      });
     }
 
     async function syncToGitHub(payload) {
+      if (isSyncing) {
+        showToast("⏳ 正在同步中，請稍候...");
+        return;
+      }
+      isSyncing = true;
+      setButtonsDisabled(true);
       showToast("⏳ 正在同步更新至 GitHub...");
+
       try {
         const res = await fetch(SYNC_WEBHOOK_URL, {
           method: "POST",
@@ -339,64 +361,86 @@
         }
       } catch (err) {
         showToast("⚠️ 無法連線至 Railway 同步伺服器");
+      } finally {
+        isSyncing = false;
+        setButtonsDisabled(false);
       }
     }
 
-    async function loadData() {
+    async function refreshFromCloud(notify = false) {
       try {
-        const resEv = await fetch('./events.json?t=' + Date.now());
-        if (resEv.ok) calendarEvents = await resEv.json();
-      } catch (e) {}
+        const resEv = await fetch("./events.json?t=" + Date.now(), { cache: "no-store" });
+        if (resEv.ok) {
+          const textEv = (await resEv.text()).trim();
+          const dataEv = textEv ? JSON.parse(textEv) : {};
+          calendarEvents = (dataEv && typeof dataEv === "object" && !Array.isArray(dataEv)) ? dataEv : {};
+        }
+      } catch (e) {
+        calendarEvents = {};
+      }
 
       try {
-        const resCl = await fetch('./clients.json?t=' + Date.now());
-        if (resCl.ok) clientList = await resCl.json();
-      } catch (e) {}
+        const resCl = await fetch("./clients.json?t=" + Date.now(), { cache: "no-store" });
+        if (resCl.ok) {
+          const textCl = (await resCl.text()).trim();
+          const dataCl = textCl ? JSON.parse(textCl) : [];
+          clientList = Array.isArray(dataCl) ? dataCl : [];
+        }
+      } catch (e) {
+        clientList = [];
+      }
 
       renderCalendar(currentYear);
       renderClients();
+      if (activeDateStr && document.getElementById("eventModal").classList.contains("active")) {
+        renderModalEvents();
+      }
+      if (notify) {
+        showToast("🔄 已重新讀取最新資料");
+      }
     }
 
     function switchView(viewName) {
-      document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-      
-      if (viewName === 'calendar') {
-        document.getElementById('calendarView').classList.add('active');
-        document.getElementById('tabCalendar').classList.add('active');
-        document.getElementById('calendarControls').style.display = 'flex';
+      document.querySelectorAll(".view-container").forEach(el => el.classList.remove("active"));
+      document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
+
+      if (viewName === "calendar") {
+        document.getElementById("calendarView").classList.add("active");
+        document.getElementById("tabCalendar").classList.add("active");
+        document.getElementById("calendarControls").style.display = "flex";
       } else {
-        document.getElementById('clientsView').classList.add('active');
-        document.getElementById('tabClients').classList.add('active');
-        document.getElementById('calendarControls').style.display = 'none';
+        document.getElementById("clientsView").classList.add("active");
+        document.getElementById("tabClients").classList.add("active");
+        document.getElementById("calendarControls").style.display = "none";
         renderClients();
       }
     }
 
     function renderClients() {
-      const grid = document.getElementById('clientGrid');
+      const grid = document.getElementById("clientGrid");
       grid.innerHTML = "";
-      if (!clientList || clientList.length === 0) {
+      if (!Array.isArray(clientList) || clientList.length === 0) {
         grid.innerHTML = `<div class="no-event" style="grid-column: 1/-1;">目前還沒有新增任何客戶檔案 ☕</div>`;
         return;
       }
+
       clientList.forEach((client, index) => {
-        const card = document.createElement('div');
-        card.className = `client-card ${client.done ? 'done' : ''}`;
+        const card = document.createElement("div");
+        card.className = `client-card ${client.done ? "done" : ""}`;
         card.onclick = () => openClientModal(index);
         card.innerHTML = `
           <div>
             <div class="client-header">
-              <span class="client-name">👤 ${client.name}</span>
-              <span class="client-phone">📞 ${client.phone}</span>
+              <span class="client-name">👤 ${client.name || "未命名"}</span>
+              <span class="client-phone">📞 ${client.phone || "未提供"}</span>
             </div>
-            <div class="client-address">📍 居住地：${client.address || '未填寫'}</div>
+            <div class="client-address">📍 居住地：${client.address || "未填寫"}</div>
             <div class="client-body">
-              ${client.note ? `📝 備註：${client.note}` : '無特別備註'}
+              ${client.note ? `📝 備註：${client.note}` : "無特別備註"}
             </div>
           </div>
           <div class="client-footer">
-            <span>建立：${client.createdAt || '未知'}</span>
+            <span>建立：${client.createdAt || "未知"}</span>
             <span>點擊卡片管理 ➔</span>
           </div>
         `;
@@ -407,36 +451,51 @@
     function openClientModal(index) {
       selectedClientIndex = index;
       const client = clientList[index];
-      document.getElementById('clientModalTitle').textContent = `👤 ${client.name}`;
-      document.getElementById('clientModalDetail').innerHTML = `
-        📞 電話：${client.phone}<br>
-        📍 居住地：${client.address || '未填寫'}<br>
-        📝 備註：${client.note || '無'}
+      if (!client) return;
+      document.getElementById("clientModalTitle").textContent = `👤 ${client.name || "未命名"}`;
+      document.getElementById("clientModalDetail").innerHTML = `
+        📞 電話：${client.phone || "未提供"}<br>
+        📍 居住地：${client.address || "未填寫"}<br>
+        📝 備註：${client.note || "無"}
       `;
-      document.getElementById('clientToggleDoneBtn').textContent = client.done ? '↩️ 取消畫線' : '✅ 達成畫線';
-      document.getElementById('clientModal').classList.add('active');
+      document.getElementById("clientToggleDoneBtn").textContent = client.done ? "↩️ 取消畫線" : "✅ 達成畫線";
+      document.getElementById("clientModal").classList.add("active");
     }
 
     function closeClientModal() {
-      document.getElementById('clientModal').classList.remove('active');
+      document.getElementById("clientModal").classList.remove("active");
+      selectedClientIndex = -1;
     }
 
     function toggleClientDone() {
-      if (selectedClientIndex > -1) {
+      if (selectedClientIndex > -1 && clientList[selectedClientIndex]) {
         clientList[selectedClientIndex].done = !clientList[selectedClientIndex].done;
         renderClients();
         closeClientModal();
-        syncToGitHub({ target: 'clients', action: 'toggleDone', index: selectedClientIndex });
+        syncToGitHub({
+          target: "clients",
+          action: "toggleDone",
+          index: selectedClientIndex,
+          data: clientList
+        });
       }
     }
 
     function deleteClient() {
-      if (selectedClientIndex > -1 && confirm(`確定要刪除客戶「${clientList[selectedClientIndex].name}」嗎？`)) {
+      if (selectedClientIndex > -1 && clientList[selectedClientIndex]) {
         const delIdx = selectedClientIndex;
-        clientList.splice(delIdx, 1);
-        renderClients();
-        closeClientModal();
-        syncToGitHub({ target: 'clients', action: 'delete', index: delIdx });
+        const targetName = clientList[delIdx].name || "此客戶";
+        if (confirm(`確定要刪除客戶「${targetName}」嗎？`)) {
+          clientList.splice(delIdx, 1);
+          renderClients();
+          closeClientModal();
+          syncToGitHub({
+            target: "clients",
+            action: "delete",
+            index: delIdx,
+            data: clientList
+          });
+        }
       }
     }
 
@@ -489,7 +548,7 @@
             dayCell.classList.add("today");
           }
 
-          if (calendarEvents[dateStr] && calendarEvents[dateStr].length > 0) {
+          if (Array.isArray(calendarEvents[dateStr]) && calendarEvents[dateStr].length > 0) {
             dayCell.classList.add("has-event");
           }
 
@@ -514,18 +573,18 @@
       list.innerHTML = "";
 
       const events = calendarEvents[activeDateStr];
-      if (events && events.length > 0) {
+      if (Array.isArray(events) && events.length > 0) {
         events.forEach((ev, idx) => {
           const li = document.createElement("li");
           li.className = "event-item";
           li.innerHTML = `
-            <div class="event-info ${ev.done ? 'done' : ''}">
+            <div class="event-info ${ev.done ? "done" : ""}">
               <div class="event-time">${ev.time || "全天"}</div>
               <div class="event-title">${ev.title}</div>
               ${ev.note ? `<div class="event-note">${ev.note}</div>` : ""}
             </div>
             <div class="action-btns">
-              <button class="btn-sm" onclick="toggleDone('${activeDateStr}', ${idx})">${ev.done ? '取消畫線' : '達成畫線'}</button>
+              <button class="btn-sm" onclick="toggleDone('${activeDateStr}', ${idx})">${ev.done ? "取消畫線" : "達成畫線"}</button>
               <button class="btn-sm btn-del" onclick="deleteEvent('${activeDateStr}', ${idx})">刪除</button>
             </div>
           `;
@@ -541,19 +600,34 @@
         calendarEvents[dateStr][index].done = !calendarEvents[dateStr][index].done;
         renderModalEvents();
         renderCalendar(currentYear);
-        syncToGitHub({ target: 'events', action: 'toggleDone', dateStr, index });
+        syncToGitHub({
+          target: "events",
+          action: "toggleDone",
+          dateStr,
+          index,
+          data: calendarEvents
+        });
       }
     }
 
     function deleteEvent(dateStr, index) {
-      if (calendarEvents[dateStr] && confirm(`確定要刪除行程「${calendarEvents[dateStr][index].title}」嗎？`)) {
-        calendarEvents[dateStr].splice(index, 1);
-        if (calendarEvents[dateStr].length === 0) {
-          delete calendarEvents[dateStr];
+      if (calendarEvents[dateStr] && calendarEvents[dateStr][index]) {
+        const evTitle = calendarEvents[dateStr][index].title || "此行程";
+        if (confirm(`確定要刪除行程「${evTitle}」嗎？`)) {
+          calendarEvents[dateStr].splice(index, 1);
+          if (calendarEvents[dateStr].length === 0) {
+            delete calendarEvents[dateStr];
+          }
+          renderModalEvents();
+          renderCalendar(currentYear);
+          syncToGitHub({
+            target: "events",
+            action: "delete",
+            dateStr,
+            index,
+            data: calendarEvents
+          });
         }
-        renderModalEvents();
-        renderCalendar(currentYear);
-        syncToGitHub({ target: 'events', action: 'delete', dateStr, index });
       }
     }
 
@@ -571,7 +645,7 @@
       renderCalendar(currentYear);
     }
 
-    loadData();
+    refreshFromCloud(false);
   </script>
 </body>
 </html>
