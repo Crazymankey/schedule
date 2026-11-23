@@ -308,7 +308,7 @@
     </div>
   </div>
 
-  <div class="sync-toast" id="syncToast">正在同步至雲端資料庫...</div>
+  <div class="sync-toast" id="syncToast">正在同步至 Google 試算表...</div>
 
   <script>
     const SYNC_WEBHOOK_URL = "https://primary-production-5317642b.up.railway.app/webhook/schedule-sync";
@@ -339,14 +339,14 @@
       });
     }
 
-    async function syncToGitHub(payload) {
+    async function syncToSheet(payload) {
       if (isSyncing) {
         showToast("⏳ 正在同步中，請稍候...");
         return;
       }
       isSyncing = true;
       setButtonsDisabled(true);
-      showToast("⏳ 正在同步更新至 GitHub...");
+      showToast("⏳ 正在同步更新至 Google 試算表...");
 
       try {
         const res = await fetch(SYNC_WEBHOOK_URL, {
@@ -355,7 +355,8 @@
           body: JSON.stringify(payload)
         });
         if (res.ok) {
-          showToast("✅ 已永久同步更新！");
+          await refreshFromCloud(false);
+          showToast("✅ 已同步更新最新資料！");
         } else {
           showToast("⚠️ 同步回應異常，請檢查 Railway n8n");
         }
@@ -369,25 +370,18 @@
 
     async function refreshFromCloud(notify = false) {
       try {
-        const resEv = await fetch("./events.json?t=" + Date.now(), { cache: "no-store" });
-        if (resEv.ok) {
-          const textEv = (await resEv.text()).trim();
-          const dataEv = textEv ? JSON.parse(textEv) : {};
-          calendarEvents = (dataEv && typeof dataEv === "object" && !Array.isArray(dataEv)) ? dataEv : {};
+        const res = await fetch(SYNC_WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "getAll" })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          calendarEvents = (data && data.events && typeof data.events === "object" && !Array.isArray(data.events)) ? data.events : {};
+          clientList = (data && Array.isArray(data.clients)) ? data.clients : [];
         }
       } catch (e) {
-        calendarEvents = {};
-      }
-
-      try {
-        const resCl = await fetch("./clients.json?t=" + Date.now(), { cache: "no-store" });
-        if (resCl.ok) {
-          const textCl = (await resCl.text()).trim();
-          const dataCl = textCl ? JSON.parse(textCl) : [];
-          clientList = Array.isArray(dataCl) ? dataCl : [];
-        }
-      } catch (e) {
-        clientList = [];
+        if (notify) showToast("⚠️ 讀取雲端資料失敗");
       }
 
       renderCalendar(currentYear);
@@ -469,14 +463,15 @@
 
     function toggleClientDone() {
       if (selectedClientIndex > -1 && clientList[selectedClientIndex]) {
-        clientList[selectedClientIndex].done = !clientList[selectedClientIndex].done;
+        const targetClient = clientList[selectedClientIndex];
+        targetClient.done = !targetClient.done;
         renderClients();
         closeClientModal();
-        syncToGitHub({
+        syncToSheet({
           target: "clients",
           action: "toggleDone",
-          index: selectedClientIndex,
-          data: clientList
+          id: targetClient.id,
+          done: targetClient.done
         });
       }
     }
@@ -484,16 +479,17 @@
     function deleteClient() {
       if (selectedClientIndex > -1 && clientList[selectedClientIndex]) {
         const delIdx = selectedClientIndex;
-        const targetName = clientList[delIdx].name || "此客戶";
+        const targetClient = clientList[delIdx];
+        const targetName = targetClient.name || "此客戶";
         if (confirm(`確定要刪除客戶「${targetName}」嗎？`)) {
           clientList.splice(delIdx, 1);
           renderClients();
           closeClientModal();
-          syncToGitHub({
+          syncToSheet({
             target: "clients",
             action: "delete",
-            index: delIdx,
-            data: clientList
+            id: targetClient.id,
+            rowNumber: targetClient.rowNumber || (delIdx + 2)
           });
         }
       }
@@ -597,22 +593,23 @@
 
     function toggleDone(dateStr, index) {
       if (calendarEvents[dateStr] && calendarEvents[dateStr][index]) {
-        calendarEvents[dateStr][index].done = !calendarEvents[dateStr][index].done;
+        const targetEv = calendarEvents[dateStr][index];
+        targetEv.done = !targetEv.done;
         renderModalEvents();
         renderCalendar(currentYear);
-        syncToGitHub({
+        syncToSheet({
           target: "events",
           action: "toggleDone",
-          dateStr,
-          index,
-          data: calendarEvents
+          id: targetEv.id,
+          done: targetEv.done
         });
       }
     }
 
     function deleteEvent(dateStr, index) {
       if (calendarEvents[dateStr] && calendarEvents[dateStr][index]) {
-        const evTitle = calendarEvents[dateStr][index].title || "此行程";
+        const targetEv = calendarEvents[dateStr][index];
+        const evTitle = targetEv.title || "此行程";
         if (confirm(`確定要刪除行程「${evTitle}」嗎？`)) {
           calendarEvents[dateStr].splice(index, 1);
           if (calendarEvents[dateStr].length === 0) {
@@ -620,12 +617,11 @@
           }
           renderModalEvents();
           renderCalendar(currentYear);
-          syncToGitHub({
+          syncToSheet({
             target: "events",
             action: "delete",
-            dateStr,
-            index,
-            data: calendarEvents
+            id: targetEv.id,
+            rowNumber: targetEv.rowNumber || (index + 2)
           });
         }
       }
